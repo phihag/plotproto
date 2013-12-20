@@ -1,0 +1,12 @@
+{
+"fields": [
+	{"label": "Version", "value": "6", "size": 4},
+	{"label": "Traffic Class", "size": 8},
+	{"label": "Flow Label", "size": 20},
+	{"label": "Payload Length", "size": 16},
+	{"label": "Next Header", "size": 8},
+	{"label": "Hop Limit", "size": 8},
+	{"label": "Source Address", "size": 128},
+	{"label": "Destination Address", "size": 128}
+]
+}
