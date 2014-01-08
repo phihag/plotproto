@@ -2,11 +2,9 @@
 
 from __future__ import unicode_literals
 
-import functools
+import argparse
 import io
 import json
-import argparse
-import sys
 import xml.etree.ElementTree
 
 
@@ -17,17 +15,14 @@ YFACTOR = 20
 XMARGIN = 5
 YMARGIN = 5
 FONT_SIZE = 15
+BITMARKER_HEIGHT = 10
 
 
-def layout(fields, width=None):
+def layout(fields, width):
     """
-    Adds x1 / x2 and y1 / y2 (in SVG coordinates) to all fields
-    Returns (width, height) in SVG coordinates
+    Adds virtual_x1 / virtual_x2 and virtual_y1 / virtual_y2 (in virtual coordinates) to all fields
+    Returns height in virtual coordinates
     """
-
-    if width is None:
-        width = 32
-
     # Calculate virtual coordinates
     x = 0
     y = 0
@@ -44,44 +39,62 @@ def layout(fields, width=None):
         y = y + ((x + size) // width)
         x = (x + size) % width
 
-    last_y = field['virtual_y2']
-
-    # Translate into physical coordinates
-    document_width = XMARGIN + width * XFACTOR + XMARGIN
-    document_height = YMARGIN + last_y * YFACTOR + YMARGIN
-
-    xcoord = lambda v: XMARGIN + v * XFACTOR
-    ycoord = lambda v: document_height - YMARGIN - YFACTOR * v
-    for f in fields:
-        f['x1'] = xcoord(f['virtual_x1'])
-        f['y1'] = xcoord(f['virtual_y1'])
-        f['x2'] = xcoord(f['virtual_x2'])
-        f['y2'] = xcoord(f['virtual_y2'])
-
-    return (document_width, document_height)
+    return field['virtual_y2']
 
 
-def plot_file(fn, width=None):
+def plot_file(fn):
     with io.open(fn, 'r', encoding='utf-8') as f:
         proto = json.load(f)
 
     doc = xml.etree.ElementTree.Element('svg')
     doc.attrib['xmlns'] = 'http://www.w3.org/2000/svg'
 
-    fields = proto['fields']
-    width, height = layout(fields)
-    doc.attrib['viewBox'] = '0 0 %d %d' % (width, height)
+    width = proto.get('width', 32)
+    large_mark_every = proto.get('large_mark_every', 8)
+    medium_mark_every = proto.get('medium_mark_every', 4)
 
-    for field in proto['fields']:
+    fields = proto['fields']
+    height = layout(fields, width)
+
+    # Translate into physical coordinates
+    document_width = XMARGIN + width * XFACTOR + XMARGIN
+    document_height = YMARGIN + BITMARKER_HEIGHT + height * YFACTOR + YMARGIN
+
+    xcoord = lambda v: XMARGIN + v * XFACTOR
+    ycoord = lambda v: YMARGIN + BITMARKER_HEIGHT + YFACTOR * v
+    doc.attrib['viewBox'] = '0 0 %d %d' % (document_width, document_height)
+
+    bitmarkers = SubElement(doc, 'g')
+    # Bit markers
+    for i in range(0, width + 1):
+        bm = SubElement(bitmarkers, 'line')
+        factor = (
+            1 if (i % large_mark_every) == 0 else
+            (0.56 if (i % medium_mark_every) == 0 else 0.3)
+        )
+        bmheight = factor * BITMARKER_HEIGHT
+        bm.attrib.update({
+            'x1': str(xcoord(i)),
+            'x2': str(xcoord(i)),
+            'y1': str(ycoord(0) - bmheight),
+            'y2': str(ycoord(0)),
+            'style': 'stroke:#000000;stroke-opacity:1;stroke-width:1',
+        })
+
+    for field in fields:
+        field['x1'] = xcoord(field['virtual_x1'])
+        field['y1'] = ycoord(field['virtual_y1'])
+        field['x2'] = xcoord(field['virtual_x2'])
+        field['y2'] = ycoord(field['virtual_y2'])
+
         g = SubElement(doc, 'g')
         g.attrib['id'] = field['label']
 
         # Draw hint lines
         vheight = field['virtual_y2'] - field['virtual_y1']
-        step = (field['y2'] - field['y1']) // vheight
         for i in range(1, vheight):
             line = SubElement(g, 'line')
-            y = field['y1'] + i * step
+            y = field['y1'] + i * YFACTOR
             line.attrib.update({
                 'x1': str(field['x1']),
                 'x2': str(field['x2']),
