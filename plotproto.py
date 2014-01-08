@@ -69,7 +69,8 @@ def plot_file(fn, width=None):
     doc.attrib['xmlns'] = 'http://www.w3.org/2000/svg'
 
     fields = proto['fields']
-    layout(fields)
+    width, height = layout(fields)
+    doc.attrib['viewBox'] = '0 0 %d %d' % (width, height)
 
     for field in proto['fields']:
         g = SubElement(doc, 'g')
@@ -77,7 +78,6 @@ def plot_file(fn, width=None):
 
         t = SubElement(g, 'text')
         t.attrib.update({
-            # TODO look at font size
             'x': str((field['x1'] + field['x2']) / 2),
             'y': str((field['y1'] + field['y2']) / 2),
             'text-anchor': 'middle',
@@ -85,6 +85,7 @@ def plot_file(fn, width=None):
             'font-size': '%s' % FONT_SIZE,
         })
         t.text = field['label']
+
         r = SubElement(g, 'rect')
         r.attrib.update({
             'x': str(field['x1']),
