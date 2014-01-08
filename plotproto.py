@@ -76,6 +76,20 @@ def plot_file(fn, width=None):
         g = SubElement(doc, 'g')
         g.attrib['id'] = field['label']
 
+        # Draw hint lines
+        vheight = field['virtual_y2'] - field['virtual_y1']
+        step = (field['y2'] - field['y1']) // vheight
+        for i in range(1, vheight):
+            line = SubElement(g, 'line')
+            y = field['y1'] + i * step
+            line.attrib.update({
+                'x1': str(field['x1']),
+                'x2': str(field['x2']),
+                'y1': str(y),
+                'y2': str(y),
+                'style': 'stroke:#000000;stroke-opacity:0.15;stroke-width:0.5',
+            })
+
         t = SubElement(g, 'text')
         t.attrib.update({
             'x': str((field['x1'] + field['x2']) / 2),
